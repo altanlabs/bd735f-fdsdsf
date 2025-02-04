@@ -24,6 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 ChartJS.register(
   CategoryScale,
@@ -40,7 +41,7 @@ export default function CryptoDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [displayCount, setDisplayCount] = useState(4);
+  const [selectedCurrencies, setSelectedCurrencies] = useState(new Set());
 
   useEffect(() => {
     const fetchCryptoData = async () => {
@@ -57,6 +58,10 @@ export default function CryptoDashboard() {
         setCryptoData(response.data);
         if (!selectedCrypto) {
           setSelectedCrypto(response.data[0]);
+        }
+        // Initialize selected currencies with top 4 by default
+        if (selectedCurrencies.size === 0) {
+          setSelectedCurrencies(new Set(response.data.slice(0, 4).map(crypto => crypto.id)));
         }
         setLoading(false);
       } catch (error) {
@@ -103,10 +108,22 @@ export default function CryptoDashboard() {
     setSelectedCrypto(crypto);
   };
 
+  const toggleCurrency = (cryptoId) => {
+    const newSelected = new Set(selectedCurrencies);
+    if (newSelected.has(cryptoId)) {
+      newSelected.delete(cryptoId);
+    } else {
+      newSelected.add(cryptoId);
+    }
+    setSelectedCurrencies(newSelected);
+  };
+
   const filteredCryptoData = cryptoData.filter(crypto =>
     crypto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     crypto.symbol.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -123,7 +140,7 @@ export default function CryptoDashboard() {
                 <Settings className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Dashboard Settings</DialogTitle>
               </DialogHeader>
@@ -137,34 +154,26 @@ export default function CryptoDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Display Count</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={displayCount}
-                    onChange={(e) => setDisplayCount(Number(e.target.value))}
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto">
-                  {filteredCryptoData.map((crypto) => (
-                    <Button
-                      key={crypto.id}
-                      variant="outline"
-                      className="justify-start"
-                      onClick={() => {
-                        if (!cryptoData.slice(0, displayCount).find(c => c.id === crypto.id)) {
-                          const newData = [...cryptoData];
-                          const index = newData.findIndex(c => c.id === crypto.id);
-                          [newData[0], newData[index]] = [newData[index], newData[0]];
-                          setCryptoData(newData);
-                        }
-                      }}
-                    >
-                      <img src={crypto.image} alt={crypto.name} className="w-4 h-4 mr-2" />
-                      {crypto.name}
-                    </Button>
-                  ))}
+                  <label className="text-sm font-medium">Select Cryptocurrencies to Display</label>
+                  <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto">
+                    {filteredCryptoData.map((crypto) => (
+                      <div key={crypto.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={crypto.id}
+                          checked={selectedCurrencies.has(crypto.id)}
+                          onCheckedChange={() => toggleCurrency(crypto.id)}
+                        />
+                        <label
+                          htmlFor={crypto.id}
+                          className="flex items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          <img src={crypto.image} alt={crypto.name} className="w-4 h-4" />
+                          {crypto.name}
+                          <span className="text-muted-foreground">({crypto.symbol.toUpperCase()})</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </DialogContent>
@@ -179,7 +188,7 @@ export default function CryptoDashboard() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {cryptoData.slice(0, displayCount).map((crypto) => (
+            {displayedCryptos.map((crypto) => (
               <Card 
                 key={crypto.id} 
                 className={`p-4 cursor-pointer transition-all hover:scale-105 ${
