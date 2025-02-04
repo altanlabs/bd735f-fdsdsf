@@ -25,15 +25,6 @@ const TIME_RANGES = {
   'ALL': { days: 'max' }
 };
 
-// Add API key if you have one
-const COINGECKO_API_KEY = '';
-const BASE_URL = 'https://api.coingecko.com/api/v3';
-
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: COINGECKO_API_KEY ? { 'x-cg-pro-api-key': COINGECKO_API_KEY } : {},
-});
-
 export default function CryptoDashboard() {
   const [cryptoData, setCryptoData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,71 +35,65 @@ export default function CryptoDashboard() {
   const [historicalData, setHistoricalData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
 
-  const fetchCryptoData = async () => {
-    try {
-      const response = await api.get('/coins/markets', {
-        params: {
-          vs_currency: 'usd',
-          order: 'market_cap_desc',
-          per_page: 20,
-          page: 1,
-          sparkline: false,
-          price_change_percentage: '24h',
-        },
-      });
+  // Fetch initial crypto data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
+          params: {
+            vs_currency: 'usd',
+            order: 'market_cap_desc',
+            per_page: 20,
+            page: 1,
+            sparkline: false
+          }
+        });
 
-      if (response.data && response.data.length > 0) {
         setCryptoData(response.data);
         
-        // Initialize selected crypto and currencies if not already set
-        if (!selectedCrypto) {
-          setSelectedCrypto(response.data[0]);
-          await fetchHistoricalData(response.data[0].id, timeRange);
+        // Set initial selected crypto and currencies
+        if (response.data.length > 0) {
+          const initialCrypto = response.data[0];
+          setSelectedCrypto(initialCrypto);
+          setSelectedCurrencies(new Set(response.data.slice(0, 4).map(c => c.id)));
+          
+          // Fetch historical data for the first crypto
+          fetchHistoricalData(initialCrypto.id, '1W');
         }
         
-        if (selectedCurrencies.size === 0) {
-          const initialSelected = new Set(response.data.slice(0, 4).map(crypto => crypto.id));
-          setSelectedCurrencies(initialSelected);
-        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
       }
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching crypto data:', error);
-      setLoading(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    fetchCryptoData();
-    const interval = setInterval(fetchCryptoData, 60000);
-    return () => clearInterval(interval);
+    fetchData();
   }, []);
 
+  // Fetch historical data
   const fetchHistoricalData = async (cryptoId, range) => {
     setChartLoading(true);
     try {
-      // Add a delay between requests to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const response = await api.get(`/coins/${cryptoId}/market_chart`, {
-        params: {
-          vs_currency: 'usd',
-          days: TIME_RANGES[range].days,
-          interval: range === '1D' ? 'minute' : range === '1W' ? 'hourly' : 'daily',
+      const response = await axios.get(
+        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`,
+        {
+          params: {
+            vs_currency: 'usd',
+            days: TIME_RANGES[range].days
+          }
         }
-      });
+      );
 
-      if (response.data && response.data.prices) {
-        const prices = response.data.prices;
-        const formattedData = [{
-          id: selectedCrypto?.name || 'Price',
-          data: prices.map(([timestamp, price]) => ({
-            x: new Date(timestamp),
-            y: price
-          }))
-        }];
-        setHistoricalData(formattedData);
-      }
+      const formattedData = [{
+        id: 'price',
+        data: response.data.prices.map(([timestamp, price]) => ({
+          x: new Date(timestamp),
+          y: price
+        }))
+      }];
+
+      setHistoricalData(formattedData);
     } catch (error) {
       console.error('Error fetching historical data:', error);
       setHistoricalData([]);
@@ -116,6 +101,7 @@ export default function CryptoDashboard() {
     setChartLoading(false);
   };
 
+  // Update historical data when timeRange or selectedCrypto changes
   useEffect(() => {
     if (selectedCrypto) {
       fetchHistoricalData(selectedCrypto.id, timeRange);
@@ -143,9 +129,8 @@ export default function CryptoDashboard() {
     }
   };
 
-  const handleCryptoClick = async (crypto) => {
+  const handleCryptoClick = (crypto) => {
     setSelectedCrypto(crypto);
-    await fetchHistoricalData(crypto.id, timeRange);
   };
 
   const toggleCurrency = (cryptoId) => {
@@ -165,51 +150,6 @@ export default function CryptoDashboard() {
 
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
-  const theme = {
-    background: 'transparent',
-    textColor: '#888888',
-    fontSize: 12,
-    axis: {
-      domain: {
-        line: {
-          stroke: '#dddddd',
-          strokeWidth: 1,
-        },
-      },
-      ticks: {
-        line: {
-          stroke: '#dddddd',
-          strokeWidth: 1,
-        },
-      },
-    },
-    grid: {
-      line: {
-        stroke: '#dddddd',
-        strokeWidth: 1,
-        strokeDasharray: '4 4',
-      },
-    },
-    crosshair: {
-      line: {
-        stroke: '#888888',
-        strokeWidth: 1,
-        strokeDasharray: '4 4',
-      },
-    },
-    tooltip: {
-      container: {
-        background: 'white',
-        color: 'inherit',
-        fontSize: 'inherit',
-        borderRadius: '8px',
-        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        padding: '6px 8px',
-      },
-    },
-  };
-
-  // Rest of the JSX remains the same...
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -347,7 +287,6 @@ export default function CryptoDashboard() {
                   enableSlices="x"
                   animate={true}
                   motionConfig="gentle"
-                  theme={theme}
                   colors={['rgb(75, 192, 192)']}
                   lineWidth={2}
                   enableArea={true}
