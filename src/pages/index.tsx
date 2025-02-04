@@ -14,8 +14,17 @@ import {
 import { Line } from 'react-chartjs-2';
 import axios from 'axios';
 import { DigitalClock } from '@/components/blocks/digital-clock';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
-// Register ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -29,6 +38,9 @@ ChartJS.register(
 export default function CryptoDashboard() {
   const [cryptoData, setCryptoData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCrypto, setSelectedCrypto] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [displayCount, setDisplayCount] = useState(4);
 
   useEffect(() => {
     const fetchCryptoData = async () => {
@@ -37,12 +49,15 @@ export default function CryptoDashboard() {
           params: {
             vs_currency: 'usd',
             order: 'market_cap_desc',
-            per_page: 10,
+            per_page: 20,
             page: 1,
-            sparkline: false,
+            sparkline: true,
           },
         });
         setCryptoData(response.data);
+        if (!selectedCrypto) {
+          setSelectedCrypto(response.data[0]);
+        }
         setLoading(false);
       } catch (error) {
         console.error('Error fetching crypto data:', error);
@@ -51,16 +66,18 @@ export default function CryptoDashboard() {
     };
 
     fetchCryptoData();
-    const interval = setInterval(fetchCryptoData, 60000); // Update every minute
+    const interval = setInterval(fetchCryptoData, 60000);
     return () => clearInterval(interval);
   }, []);
 
   const chartData = {
-    labels: cryptoData.map((crypto) => crypto.symbol.toUpperCase()),
+    labels: selectedCrypto?.sparkline_in_7d?.price?.map((_, index) => 
+      index % 24 === 0 ? \`Day \${Math.floor(index/24) + 1}\` : ''
+    ) || [],
     datasets: [
       {
-        label: 'Price (USD)',
-        data: cryptoData.map((crypto) => crypto.current_price),
+        label: selectedCrypto ? \`\${selectedCrypto.name} Price (USD)\` : 'Price (USD)',
+        data: selectedCrypto?.sparkline_in_7d?.price || [],
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1,
@@ -70,16 +87,26 @@ export default function CryptoDashboard() {
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top' as const,
       },
       title: {
         display: true,
-        text: 'Cryptocurrency Prices',
+        text: '7 Day Price History',
       },
     },
   };
+
+  const handleCryptoClick = (crypto) => {
+    setSelectedCrypto(crypto);
+  };
+
+  const filteredCryptoData = cryptoData.filter(crypto =>
+    crypto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    crypto.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -88,7 +115,61 @@ export default function CryptoDashboard() {
           <h1 className="text-4xl font-bold mb-2">Crypto Dashboard</h1>
           <p className="text-muted-foreground">Real-time cryptocurrency market data</p>
         </div>
-        <DigitalClock />
+        <div className="flex items-center gap-4">
+          <DigitalClock />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Dashboard Settings</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Search Cryptocurrencies</label>
+                  <Input
+                    placeholder="Search by name or symbol..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Display Count</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={displayCount}
+                    onChange={(e) => setDisplayCount(Number(e.target.value))}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto">
+                  {filteredCryptoData.map((crypto) => (
+                    <Button
+                      key={crypto.id}
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => {
+                        if (!cryptoData.slice(0, displayCount).find(c => c.id === crypto.id)) {
+                          const newData = [...cryptoData];
+                          const index = newData.findIndex(c => c.id === crypto.id);
+                          [newData[0], newData[index]] = [newData[index], newData[0]];
+                          setCryptoData(newData);
+                        }
+                      }}
+                    >
+                      <img src={crypto.image} alt={crypto.name} className="w-4 h-4 mr-2" />
+                      {crypto.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {loading ? (
@@ -98,8 +179,14 @@ export default function CryptoDashboard() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {cryptoData.slice(0, 4).map((crypto) => (
-              <Card key={crypto.id} className="p-4">
+            {cryptoData.slice(0, displayCount).map((crypto) => (
+              <Card 
+                key={crypto.id} 
+                className={`p-4 cursor-pointer transition-all hover:scale-105 ${
+                  selectedCrypto?.id === crypto.id ? 'ring-2 ring-primary' : ''
+                }`}
+                onClick={() => handleCryptoClick(crypto)}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <img src={crypto.image} alt={crypto.name} className="w-6 h-6" />
                   <h2 className="font-semibold">{crypto.name}</h2>
@@ -118,7 +205,9 @@ export default function CryptoDashboard() {
           </div>
 
           <Card className="p-6">
-            <Line options={chartOptions} data={chartData} />
+            <div className="h-[400px]">
+              <Line options={chartOptions} data={chartData} />
+            </div>
           </Card>
 
           <div className="mt-8 overflow-x-auto">
@@ -133,7 +222,13 @@ export default function CryptoDashboard() {
               </thead>
               <tbody>
                 {cryptoData.map((crypto) => (
-                  <tr key={crypto.id} className="border-b hover:bg-muted/50">
+                  <tr 
+                    key={crypto.id} 
+                    className={`border-b hover:bg-muted/50 cursor-pointer ${
+                      selectedCrypto?.id === crypto.id ? 'bg-muted' : ''
+                    }`}
+                    onClick={() => handleCryptoClick(crypto)}
+                  >
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <img src={crypto.image} alt={crypto.name} className="w-6 h-6" />
