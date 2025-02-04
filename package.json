@@ -10,6 +10,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource/press-start-2p": "^5.1.1",
+    "@fontsource/vt323": "^5.1.1",
     "@iconify/react": "^5.2.0",
     "@nivo/line": "^0.88.0",
     "@radix-ui/colors": "^3.0.0",
