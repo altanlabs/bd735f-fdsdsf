@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ResponsiveLine } from '@nivo/line';
@@ -15,6 +15,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
+interface CryptoData {
+  id: string;
+  name: string;
+  symbol: string;
+  image: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  market_cap: number;
+}
+
 const TIME_RANGES = {
   '1D': { days: 1 },
   '1W': { days: 7 },
@@ -22,19 +32,118 @@ const TIME_RANGES = {
   '6M': { days: 180 },
   '1Y': { days: 365 },
   'ALL': { days: 'max' }
-};
+} as const;
 
-export default function CryptoDashboard() {
-  const [cryptoData, setCryptoData] = useState([]);
+const CryptoDashboard: React.FC = () => {
+  const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCrypto, setSelectedCrypto] = useState(null);
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoData | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCurrencies, setSelectedCurrencies] = useState(new Set());
-  const [timeRange, setTimeRange] = useState('1W');
-  const [historicalData, setHistoricalData] = useState([]);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<Set<string>>(new Set());
+  const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>('1W');
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
 
-  // ... (keep all the existing fetch and data handling functions)
+  const fetchCryptoData = async () => {
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false');
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        setCryptoData(data);
+        
+        if (!selectedCrypto) {
+          setSelectedCrypto(data[0]);
+          fetchHistoricalData(data[0].id);
+        }
+        
+        if (selectedCurrencies.size === 0) {
+          setSelectedCurrencies(new Set(data.slice(0, 4).map(c => c.id)));
+        }
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching crypto data:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchHistoricalData = async (cryptoId: string) => {
+    if (!cryptoId) return;
+    
+    setChartLoading(true);
+    try {
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart?vs_currency=usd&days=${TIME_RANGES[timeRange].days}`
+      );
+      const data = await response.json();
+      
+      if (data && data.prices) {
+        const formattedData = [{
+          id: 'price',
+          data: data.prices.map(([timestamp, price]: [number, number]) => ({
+            x: new Date(timestamp),
+            y: price
+          }))
+        }];
+        setHistoricalData(formattedData);
+      }
+    } catch (error) {
+      console.error('Error fetching historical data:', error);
+      setHistoricalData([]);
+    }
+    setChartLoading(false);
+  };
+
+  useEffect(() => {
+    fetchCryptoData();
+    const interval = setInterval(fetchCryptoData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (selectedCrypto) {
+      fetchHistoricalData(selectedCrypto.id);
+    }
+  }, [timeRange, selectedCrypto?.id]);
+
+  const formatDate = (date: Date) => {
+    if (!(date instanceof Date)) {
+      date = new Date(date);
+    }
+    
+    switch(timeRange) {
+      case '1D':
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      case '1W':
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      case '1M':
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      case '6M':
+      case '1Y':
+      case 'ALL':
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+      default:
+        return date.toLocaleDateString();
+    }
+  };
+
+  const handleCryptoClick = (crypto: CryptoData) => {
+    setSelectedCrypto(crypto);
+  };
+
+  const toggleCurrency = (cryptoId: string) => {
+    const newSelected = new Set(selectedCurrencies);
+    if (newSelected.has(cryptoId)) {
+      newSelected.delete(cryptoId);
+    } else {
+      newSelected.add(cryptoId);
+    }
+    setSelectedCurrencies(newSelected);
+  };
+
+  const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
   const chartTheme = {
     background: 'transparent',
@@ -84,7 +193,7 @@ export default function CryptoDashboard() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <main className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-4xl mb-2 text-primary">CRYPTO TERMINAL v1.0</h1>
@@ -153,9 +262,9 @@ export default function CryptoDashboard() {
             {displayedCryptos.map((crypto) => (
               <Card 
                 key={crypto.id} 
-                className={\`retro-card p-4 cursor-pointer transition-all hover:scale-105 \${
+                className={`retro-card p-4 cursor-pointer transition-all hover:scale-105 ${
                   selectedCrypto?.id === crypto.id ? 'ring-2 ring-primary' : ''
-                }\`}
+                }`}
                 onClick={() => handleCryptoClick(crypto)}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -167,7 +276,7 @@ export default function CryptoDashboard() {
                 </div>
                 <div className="space-y-2">
                   <p className="text-2xl font-bold font-vt323 text-primary">${crypto.current_price.toLocaleString()}</p>
-                  <p className={\`text-sm \${crypto.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}\`}>
+                  <p className={`text-sm ${crypto.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {crypto.price_change_percentage_24h.toFixed(2)}% (24h)
                   </p>
                 </div>
@@ -180,8 +289,8 @@ export default function CryptoDashboard() {
               {Object.keys(TIME_RANGES).map((range) => (
                 <Button
                   key={range}
-                  className={\`retro-button \${timeRange === range ? 'bg-primary text-primary-foreground' : 'bg-background text-primary'}\`}
-                  onClick={() => setTimeRange(range)}
+                  className={`retro-button ${timeRange === range ? 'bg-primary text-primary-foreground' : 'bg-background text-primary'}`}
+                  onClick={() => setTimeRange(range as keyof typeof TIME_RANGES)}
                 >
                   {range}
                 </Button>
@@ -209,11 +318,11 @@ export default function CryptoDashboard() {
                   axisLeft={{
                     format: value => 
                       value >= 1000
-                        ? \`$\${(value / 1000).toFixed(1)}k\`
-                        : \`$\${value.toFixed(1)}\`,
+                        ? `$${(value / 1000).toFixed(1)}k`
+                        : `$${value.toFixed(1)}`,
                   }}
                   axisBottom={{
-                    format: formatDate,
+                    format: (date: Date) => formatDate(date),
                     tickRotation: -45,
                     tickValues: 5,
                   }}
@@ -231,7 +340,7 @@ export default function CryptoDashboard() {
                   sliceTooltip={({ slice }) => (
                     <div className="bg-background border border-primary rounded-none p-2 font-vt323">
                       <div className="text-sm">
-                        {formatDate(slice.points[0].data.x)}
+                        {formatDate(new Date(slice.points[0].data.x))}
                       </div>
                       <div className="text-lg text-primary">
                         ${slice.points[0].data.y.toLocaleString(undefined, {
@@ -264,9 +373,9 @@ export default function CryptoDashboard() {
                 {displayedCryptos.map((crypto) => (
                   <tr 
                     key={crypto.id} 
-                    className={\`cursor-pointer \${
+                    className={`cursor-pointer ${
                       selectedCrypto?.id === crypto.id ? 'bg-primary/10' : ''
-                    }\`}
+                    }`}
                     onClick={() => handleCryptoClick(crypto)}
                   >
                     <td>
@@ -277,7 +386,7 @@ export default function CryptoDashboard() {
                       </div>
                     </td>
                     <td className="text-right">${crypto.current_price.toLocaleString()}</td>
-                    <td className={\`text-right \${crypto.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}\`}>
+                    <td className={`text-right ${crypto.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {crypto.price_change_percentage_24h.toFixed(2)}%
                     </td>
                     <td className="text-right">${crypto.market_cap.toLocaleString()}</td>
@@ -288,6 +397,8 @@ export default function CryptoDashboard() {
           </div>
         </>
       )}
-    </div>
+    </main>
   );
-}
+};
+
+export default CryptoDashboard;
