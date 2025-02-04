@@ -34,7 +34,7 @@ const App = () => {
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <div className="min-h-screen bg-background">
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-20 z-50">
           <ThemeToggle />
         </div>
         <RouterProvider router={router} />
