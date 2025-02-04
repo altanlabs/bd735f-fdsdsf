@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select } from "@/components/ui/select";
 
 ChartJS.register(
   CategoryScale,
@@ -42,6 +43,7 @@ export default function CryptoDashboard() {
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCurrencies, setSelectedCurrencies] = useState(new Set());
+  const [sortOption, setSortOption] = useState('market_cap_desc');
 
   useEffect(() => {
     const fetchCryptoData = async () => {
@@ -49,17 +51,17 @@ export default function CryptoDashboard() {
         const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
           params: {
             vs_currency: 'usd',
-            order: 'market_cap_desc',
+            order: sortOption,
             per_page: 20,
             page: 1,
             sparkline: true,
+            price_change_percentage: '1h,24h,7d,30d,200d,1y',
           },
         });
         setCryptoData(response.data);
         if (!selectedCrypto) {
           setSelectedCrypto(response.data[0]);
         }
-        // Initialize selected currencies with top 4 by default
         if (selectedCurrencies.size === 0) {
           setSelectedCurrencies(new Set(response.data.slice(0, 4).map(crypto => crypto.id)));
         }
@@ -73,7 +75,7 @@ export default function CryptoDashboard() {
     fetchCryptoData();
     const interval = setInterval(fetchCryptoData, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [sortOption]);
 
   const chartData = {
     labels: selectedCrypto?.sparkline_in_7d?.price?.map((_, index) => 
@@ -174,6 +176,28 @@ export default function CryptoDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sort By</label>
+                  <Select
+                    value={sortOption}
+                    onValueChange={(value) => setSortOption(value)}
+                  >
+                    <option value="market_cap_desc">Market Cap (High to Low)</option>
+                    <option value="market_cap_asc">Market Cap (Low to High)</option>
+                    <option value="price_desc">Price (High to Low)</option>
+                    <option value="price_asc">Price (Low to High)</option>
+                    <option value="percent_change_24h_desc">24h Change (High to Low)</option>
+                    <option value="percent_change_24h_asc">24h Change (Low to High)</option>
+                    <option value="percent_change_7d_desc">7d Change (High to Low)</option>
+                    <option value="percent_change_7d_asc">7d Change (Low to High)</option>
+                    <option value="percent_change_30d_desc">30d Change (High to Low)</option>
+                    <option value="percent_change_30d_asc">30d Change (Low to High)</option>
+                    <option value="percent_change_200d_desc">200d Change (High to Low)</option>
+                    <option value="percent_change_200d_asc">200d Change (Low to High)</option>
+                    <option value="percent_change_1y_desc">1y Change (High to Low)</option>
+                    <option value="percent_change_1y_asc">1y Change (Low to High)</option>
+                  </Select>
                 </div>
               </div>
             </DialogContent>
