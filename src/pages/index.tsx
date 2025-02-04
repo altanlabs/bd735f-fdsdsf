@@ -254,7 +254,7 @@ export default function CryptoDashboard() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {displayedCryptos.map((crypto) => (
+            {cryptoData.map((crypto) => (
               <Card 
                 key={crypto.id} 
                 className={`p-4 cursor-pointer transition-all hover:scale-105 ${
