@@ -58,7 +58,26 @@ export default function CryptoDashboard() {
           setSelectedCurrencies(new Set(response.data.slice(0, 4).map(c => c.id)));
           
           // Fetch historical data for the first crypto
-          fetchHistoricalData(initialCrypto.id, '1W');
+          const historyResponse = await axios.get(
+            `https://api.coingecko.com/api/v3/coins/${initialCrypto.id}/market_chart`,
+            {
+              params: {
+                vs_currency: 'usd',
+                days: TIME_RANGES['1W'].days,
+                interval: 'hourly'
+              }
+            }
+          );
+
+          if (historyResponse.data && historyResponse.data.prices) {
+            setHistoricalData([{
+              id: initialCrypto.name,
+              data: historyResponse.data.prices.map(([timestamp, price]) => ({
+                x: new Date(timestamp),
+                y: price
+              }))
+            }]);
+          }
         }
         
         setLoading(false);
@@ -69,31 +88,41 @@ export default function CryptoDashboard() {
     };
 
     fetchData();
+
+    // Refresh data every minute
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch historical data
   const fetchHistoricalData = async (cryptoId, range) => {
+    if (!cryptoId) return;
+    
     setChartLoading(true);
     try {
+      const interval = range === '1D' ? 'minute' : range === '1W' ? 'hourly' : 'daily';
+      
       const response = await axios.get(
         `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`,
         {
           params: {
             vs_currency: 'usd',
-            days: TIME_RANGES[range].days
+            days: TIME_RANGES[range].days,
+            interval: interval
           }
         }
       );
 
-      const formattedData = [{
-        id: 'price',
-        data: response.data.prices.map(([timestamp, price]) => ({
-          x: new Date(timestamp),
-          y: price
-        }))
-      }];
-
-      setHistoricalData(formattedData);
+      if (response.data && response.data.prices) {
+        const selectedCryptoData = cryptoData.find(c => c.id === cryptoId);
+        setHistoricalData([{
+          id: selectedCryptoData?.name || 'Price',
+          data: response.data.prices.map(([timestamp, price]) => ({
+            x: new Date(timestamp),
+            y: price
+          }))
+        }]);
+      }
     } catch (error) {
       console.error('Error fetching historical data:', error);
       setHistoricalData([]);
@@ -150,6 +179,7 @@ export default function CryptoDashboard() {
 
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
+  // Rest of the JSX remains the same...
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
