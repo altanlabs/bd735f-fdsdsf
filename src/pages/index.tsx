@@ -17,12 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const TIME_RANGES = {
-  '1D': { days: 1, interval: 'minutely' },
-  '1W': { days: 7, interval: 'hourly' },
-  '1M': { days: 30, interval: 'hourly' },
-  '6M': { days: 180, interval: 'daily' },
-  '1Y': { days: 365, interval: 'daily' },
-  'ALL': { days: 'max', interval: 'daily' }
+  '1D': { days: 1 },
+  '1W': { days: 7 },
+  '1M': { days: 30 },
+  '6M': { days: 180 },
+  '1Y': { days: 365 },
+  'ALL': { days: 'max' }
 };
 
 export default function CryptoDashboard() {
@@ -50,7 +50,7 @@ export default function CryptoDashboard() {
         setCryptoData(response.data);
         if (!selectedCrypto) {
           setSelectedCrypto(response.data[0]);
-          fetchHistoricalData(response.data[0].id, timeRange);
+          await fetchHistoricalData(response.data[0].id, timeRange);
         }
         if (selectedCurrencies.size === 0) {
           setSelectedCurrencies(new Set(response.data.slice(0, 4).map(crypto => crypto.id)));
@@ -70,22 +70,21 @@ export default function CryptoDashboard() {
   const fetchHistoricalData = async (cryptoId, range) => {
     setChartLoading(true);
     try {
-      const params = {
-        vs_currency: 'usd',
-        days: TIME_RANGES[range].days === 'max' ? 'max' : TIME_RANGES[range].days,
-        interval: TIME_RANGES[range].interval
-      };
-
       const response = await axios.get(
         `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`,
-        { params }
+        {
+          params: {
+            vs_currency: 'usd',
+            days: TIME_RANGES[range].days,
+          }
+        }
       );
 
-      // Format data for Nivo chart
+      const prices = response.data.prices;
       const formattedData = [{
-        id: selectedCrypto.name,
-        data: response.data.prices.map(([timestamp, price]) => ({
-          x: timestamp,
+        id: 'price',
+        data: prices.map(([timestamp, price]) => ({
+          x: new Date(timestamp),
           y: price
         }))
       }];
@@ -93,6 +92,7 @@ export default function CryptoDashboard() {
       setHistoricalData(formattedData);
     } catch (error) {
       console.error('Error fetching historical data:', error);
+      setHistoricalData([]);
     }
     setChartLoading(false);
   };
@@ -103,13 +103,16 @@ export default function CryptoDashboard() {
     }
   }, [timeRange, selectedCrypto?.id]);
 
-  const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
+  const formatDate = (date) => {
+    if (!(date instanceof Date)) {
+      date = new Date(date);
+    }
+    
     switch(timeRange) {
       case '1D':
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       case '1W':
-        return date.toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit' });
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       case '1M':
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       case '6M':
@@ -121,8 +124,9 @@ export default function CryptoDashboard() {
     }
   };
 
-  const handleCryptoClick = (crypto) => {
+  const handleCryptoClick = async (crypto) => {
     setSelectedCrypto(crypto);
+    await fetchHistoricalData(crypto.id, timeRange);
   };
 
   const toggleCurrency = (cryptoId) => {
@@ -188,6 +192,7 @@ export default function CryptoDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Header section remains the same */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-4xl font-bold mb-2">Crypto Dashboard</h1>
@@ -313,7 +318,7 @@ export default function CryptoDashboard() {
                         : `$${value.toFixed(1)}`,
                   }}
                   axisBottom={{
-                    format: (value) => formatDate(value),
+                    format: formatDate,
                     tickRotation: -45,
                     tickValues: 5,
                   }}
