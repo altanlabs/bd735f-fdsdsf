@@ -1,5 +1,6 @@
 import './globals.css'
-import { ThemeProvider } from "@/providers/theme-provider"
+import { ThemeProvider } from "@/theme/theme-provider"
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function RootLayout({
   children,
@@ -13,13 +14,13 @@ export default function RootLayout({
         <link rel="icon" href="https://i.imgur.com/jD177JQ.png" />
       </head>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          {children}
+        <ThemeProvider defaultTheme="light">
+          <div className="min-h-screen bg-background text-foreground">
+            <div className="fixed top-4 right-4 z-50">
+              <ThemeToggle />
+            </div>
+            {children}
+          </div>
         </ThemeProvider>
       </body>
     </html>
