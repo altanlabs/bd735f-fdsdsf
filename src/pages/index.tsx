@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { ResponsiveLine } from '@nivo/line';
 import axios from 'axios';
 import { DigitalClock } from '@/components/blocks/digital-clock';
 import { Button } from '@/components/ui/button';
@@ -25,16 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 const TIME_RANGES = {
   '1D': { days: 1, interval: 'minutely' },
@@ -111,7 +91,15 @@ export default function CryptoDashboard() {
       }
 
       const response = await axios.get(endpoint, { params });
-      setHistoricalData(response.data.prices);
+      const formattedData = response.data.prices.map(([timestamp, price]) => ({
+        x: new Date(timestamp),
+        y: price,
+      }));
+
+      setHistoricalData([{
+        id: selectedCrypto.name,
+        data: formattedData
+      }]);
     } catch (error) {
       console.error('Error fetching historical data:', error);
     }
@@ -124,8 +112,7 @@ export default function CryptoDashboard() {
     }
   }, [timeRange, selectedCrypto?.id]);
 
-  const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
+  const formatDate = (date) => {
     switch(timeRange) {
       case '1D':
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -136,69 +123,10 @@ export default function CryptoDashboard() {
       case '6M':
       case '1Y':
       case 'ALL':
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
       default:
         return date.toLocaleDateString();
     }
-  };
-
-  const chartData = {
-    labels: historicalData.map(([timestamp]) => formatDate(timestamp)),
-    datasets: [
-      {
-        label: selectedCrypto ? `${selectedCrypto.name} Price (USD)` : 'Price (USD)',
-        data: historicalData.map(([, price]) => price),
-        fill: false,
-        borderColor: 'rgb(75, 192, 192)',
-        tension: 0.1,
-        pointRadius: timeRange === '1D' ? 0 : 2,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: {
-      intersect: false,
-      mode: 'index',
-    },
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: `${selectedCrypto?.name || ''} Price History (${timeRange})`,
-      },
-      tooltip: {
-        callbacks: {
-          label: (context) => {
-            return `$${context.parsed.y.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}`;
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          maxTicksLimit: timeRange === '1D' ? 12 : 8,
-          maxRotation: 0,
-        },
-        grid: {
-          display: false,
-        },
-      },
-      y: {
-        position: 'right',
-        ticks: {
-          callback: (value) => `$${value.toLocaleString()}`,
-        },
-      },
-    },
   };
 
   const handleCryptoClick = (crypto) => {
@@ -221,6 +149,31 @@ export default function CryptoDashboard() {
   );
 
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
+
+  const theme = {
+    axis: {
+      ticks: {
+        text: {
+          fill: '#888888',
+          fontSize: 12,
+        },
+      },
+    },
+    grid: {
+      line: {
+        stroke: '#dddddd',
+        strokeWidth: 1,
+        strokeDasharray: '4 4',
+      },
+    },
+    crosshair: {
+      line: {
+        stroke: '#888888',
+        strokeWidth: 1,
+        strokeDasharray: '4 4',
+      },
+    },
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -329,7 +282,53 @@ export default function CryptoDashboard() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : (
-                <Line options={chartOptions} data={chartData} />
+                <ResponsiveLine
+                  data={historicalData}
+                  margin={{ top: 10, right: 40, bottom: 50, left: 60 }}
+                  xScale={{
+                    type: 'time',
+                    format: 'native',
+                  }}
+                  yScale={{
+                    type: 'linear',
+                    min: 'auto',
+                    max: 'auto',
+                  }}
+                  axisLeft={{
+                    format: value => 
+                      value >= 1000
+                        ? `$${(value / 1000).toFixed(1)}k`
+                        : `$${value.toFixed(1)}`,
+                  }}
+                  axisBottom={{
+                    format: (value) => formatDate(value),
+                    tickRotation: -45,
+                  }}
+                  enableGridX={false}
+                  curve="monotoneX"
+                  enablePoints={false}
+                  enableSlices="x"
+                  animate={true}
+                  motionConfig="gentle"
+                  theme={theme}
+                  colors={['rgb(75, 192, 192)']}
+                  lineWidth={2}
+                  enableArea={true}
+                  areaOpacity={0.1}
+                  sliceTooltip={({ slice }) => (
+                    <div className="bg-background border border-border rounded-lg shadow-lg p-2">
+                      <div className="text-sm font-medium">
+                        {formatDate(slice.points[0].data.x)}
+                      </div>
+                      <div className="text-lg font-bold">
+                        ${slice.points[0].data.y.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    </div>
+                  )}
+                />
               )}
             </div>
           </Card>
