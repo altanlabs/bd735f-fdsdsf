@@ -1,13 +1,5 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: 'Crypto Dashboard',
-  description: 'Real-time cryptocurrency market data',
-}
+import { ThemeProvider } from "@/providers/theme-provider"
 
 export default function RootLayout({
   children,
@@ -15,9 +7,20 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>Windows XP</title>
+        <link rel="icon" href="https://i.imgur.com/jD177JQ.png" />
+      </head>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
