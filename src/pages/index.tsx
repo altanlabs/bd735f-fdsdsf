@@ -145,106 +145,152 @@ const CryptoDashboard: React.FC = () => {
 
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
+  const chartTheme = {
+    background: 'transparent',
+    textColor: '#00ff00',
+    fontSize: 12,
+    fontFamily: 'VT323',
+    axis: {
+      domain: {
+        line: {
+          stroke: '#00ff00',
+          strokeWidth: 1,
+        },
+      },
+      ticks: {
+        line: {
+          stroke: '#00ff00',
+          strokeWidth: 1,
+        },
+        text: {
+          fill: '#00ff00',
+        }
+      },
+    },
+    grid: {
+      line: {
+        stroke: '#00ff0020',
+        strokeWidth: 1,
+      },
+    },
+    crosshair: {
+      line: {
+        stroke: '#00ff00',
+        strokeWidth: 1,
+        strokeDasharray: '4 4',
+      },
+    },
+    tooltip: {
+      container: {
+        background: '#001a00',
+        color: '#00ff00',
+        fontFamily: 'VT323',
+        fontSize: '16px',
+        border: '1px solid #00ff00',
+        boxShadow: '0 0 10px rgba(0, 255, 0, 0.2)',
+      },
+    },
+  };
+
   return (
-    <div className="winxp-window min-h-screen">
-      <div className="winxp-titlebar">
-        <div className="winxp-titlebar-text flex items-center gap-2">
-          <img src="https://i.imgur.com/VA8RCtI.png" alt="Crypto" className="w-4 h-4" />
-          Crypto Dashboard
+    <main className="container mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl md:text-4xl mb-2 text-primary">CRYPTO TERMINAL v1.0</h1>
+          <p className="text-muted-foreground font-vt323 text-lg">REAL-TIME MARKET DATA</p>
         </div>
-        <div className="winxp-window-controls">
-          <button className="px-2 text-white hover:bg-blue-700">_</button>
-          <button className="px-2 text-white hover:bg-blue-700">□</button>
-          <button className="px-2 text-white hover:bg-red-600">×</button>
+        <div className="flex items-center gap-4">
+          <div className="digital-display">
+            <DigitalClock />
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="retro-button" size="icon">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="retro-card max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-primary text-xl">SYSTEM CONFIG</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-primary">SEARCH ASSETS</label>
+                  <Input
+                    className="retro-input"
+                    placeholder="ENTER ASSET NAME..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-primary">SELECT ASSETS</label>
+                  <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto">
+                    {cryptoData.map((crypto) => (
+                      <div key={crypto.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={crypto.id}
+                          checked={selectedCurrencies.has(crypto.id)}
+                          onCheckedChange={() => toggleCurrency(crypto.id)}
+                          className="border-primary"
+                        />
+                        <label
+                          htmlFor={crypto.id}
+                          className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
+                        >
+                          <img src={crypto.image} alt={crypto.name} className="w-4 h-4" />
+                          {crypto.name}
+                          <span className="text-muted-foreground">({crypto.symbol.toUpperCase()})</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <div className="p-4 bg-[#ECE9D8]">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-4">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="winxp-button">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="winxp-window">
-                <div className="winxp-titlebar">
-                  <DialogTitle className="winxp-titlebar-text">Settings</DialogTitle>
-                </div>
-                <div className="p-4 bg-[#ECE9D8]">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm mb-2">Search Assets:</label>
-                      <Input
-                        className="winxp-input"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Enter asset name..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-2">Select Assets:</label>
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {cryptoData.map((crypto) => (
-                          <div key={crypto.id} className="flex items-center gap-2 p-1 hover:bg-blue-100">
-                            <Checkbox
-                              checked={selectedCurrencies.has(crypto.id)}
-                              onCheckedChange={() => toggleCurrency(crypto.id)}
-                            />
-                            <img src={crypto.image} alt={crypto.name} className="w-5 h-5" />
-                            <span>{crypto.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <DigitalClock />
-          </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-primary text-xl font-vt323">LOADING DATA...</div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {displayedCryptos.map((crypto) => (
-            <Card
-              key={crypto.id}
-              className={`winxp-card cursor-pointer ${
-                selectedCrypto?.id === crypto.id ? 'ring-2 ring-[#0831D9]' : ''
-              }`}
-              onClick={() => handleCryptoClick(crypto)}
-            >
-              <div className="p-4">
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {displayedCryptos.map((crypto) => (
+              <Card 
+                key={crypto.id} 
+                className={`retro-card p-4 cursor-pointer transition-all hover:scale-105 ${
+                  selectedCrypto?.id === crypto.id ? 'ring-2 ring-primary' : ''
+                }`}
+                onClick={() => handleCryptoClick(crypto)}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <img src={crypto.image} alt={crypto.name} className="w-6 h-6" />
-                  <h3 className="font-bold">{crypto.name}</h3>
-                  <Badge className="ml-auto winxp-badge">
+                  <h2 className="font-vt323 text-lg">{crypto.name}</h2>
+                  <Badge variant="outline" className="ml-auto border-primary text-primary">
                     {crypto.symbol.toUpperCase()}
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-2xl font-bold">${crypto.current_price.toLocaleString()}</p>
-                  <p className={crypto.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600'}>
+                  <p className="text-2xl font-bold font-vt323 text-primary">${crypto.current_price.toLocaleString()}</p>
+                  <p className={`text-sm ${crypto.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {crypto.price_change_percentage_24h.toFixed(2)}% (24h)
                   </p>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
 
-        <Card className="winxp-card mb-6">
-          <div className="p-4">
+          <Card className="retro-card p-6 mb-8">
             <div className="flex justify-end gap-2 mb-4">
               {Object.keys(TIME_RANGES).map((range) => (
                 <Button
                   key={range}
+                  className={`retro-button ${timeRange === range ? 'bg-primary text-primary-foreground' : 'bg-background text-primary'}`}
                   onClick={() => setTimeRange(range as keyof typeof TIME_RANGES)}
-                  className={`winxp-button ${
-                    timeRange === range ? 'bg-[#0831D9] text-white' : ''
-                  }`}
                 >
                   {range}
                 </Button>
@@ -252,10 +298,10 @@ const CryptoDashboard: React.FC = () => {
             </div>
             <div className="h-[400px] relative">
               {chartLoading ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  Loading chart...
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                  <div className="text-primary text-xl font-vt323">LOADING CHART...</div>
                 </div>
-              ) : (
+              ) : historicalData[0]?.data?.length > 0 ? (
                 <ResponsiveLine
                   data={historicalData}
                   margin={{ top: 10, right: 40, bottom: 50, left: 60 }}
@@ -267,9 +313,10 @@ const CryptoDashboard: React.FC = () => {
                     type: 'linear',
                     min: 'auto',
                     max: 'auto',
+                    stacked: false,
                   }}
                   axisLeft={{
-                    format: value =>
+                    format: value => 
                       value >= 1000
                         ? `$${(value / 1000).toFixed(1)}k`
                         : `$${value.toFixed(1)}`,
@@ -277,74 +324,80 @@ const CryptoDashboard: React.FC = () => {
                   axisBottom={{
                     format: (date: Date) => formatDate(date),
                     tickRotation: -45,
+                    tickValues: 5,
                   }}
-                  enablePoints={false}
                   enableGridX={false}
                   curve="monotoneX"
-                  colors={['#0831D9']}
-                  theme={{
-                    axis: {
-                      ticks: {
-                        text: {
-                          fill: '#333333',
-                          fontSize: 12,
-                        },
-                      },
-                    },
-                    grid: {
-                      line: {
-                        stroke: '#E5E5E5',
-                      },
-                    },
-                  }}
+                  enablePoints={false}
+                  enableSlices="x"
+                  animate={true}
+                  motionConfig="gentle"
+                  theme={chartTheme}
+                  colors={['#00ff00']}
+                  lineWidth={2}
+                  enableArea={true}
+                  areaOpacity={0.1}
+                  sliceTooltip={({ slice }) => (
+                    <div className="bg-background border border-primary rounded-none p-2 font-vt323">
+                      <div className="text-sm">
+                        {formatDate(new Date(slice.points[0].data.x))}
+                      </div>
+                      <div className="text-lg text-primary">
+                        ${slice.points[0].data.y.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    </div>
+                  )}
                 />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground font-vt323">
+                  NO DATA AVAILABLE
+                </div>
               )}
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card className="winxp-card">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-[#ECE9D8] border-b border-[#919B9C]">
+          <div className="mt-8 overflow-x-auto">
+            <table className="retro-table">
+              <thead>
                 <tr>
-                  <th className="text-left p-3">Asset</th>
-                  <th className="text-right p-3">Price</th>
-                  <th className="text-right p-3">24h Change</th>
-                  <th className="text-right p-3">Market Cap</th>
+                  <th className="text-left">ASSET</th>
+                  <th className="text-right">PRICE</th>
+                  <th className="text-right">24H CHANGE</th>
+                  <th className="text-right">MARKET CAP</th>
                 </tr>
               </thead>
               <tbody>
                 {displayedCryptos.map((crypto) => (
-                  <tr
-                    key={crypto.id}
-                    className={`cursor-pointer hover:bg-[#E8E8E8] ${
-                      selectedCrypto?.id === crypto.id ? 'bg-[#E8E8E8]' : ''
+                  <tr 
+                    key={crypto.id} 
+                    className={`cursor-pointer ${
+                      selectedCrypto?.id === crypto.id ? 'bg-primary/10' : ''
                     }`}
                     onClick={() => handleCryptoClick(crypto)}
                   >
-                    <td className="p-3">
+                    <td>
                       <div className="flex items-center gap-2">
                         <img src={crypto.image} alt={crypto.name} className="w-6 h-6" />
                         <span className="font-medium">{crypto.name}</span>
-                        <span className="text-gray-600">{crypto.symbol.toUpperCase()}</span>
+                        <span className="text-muted-foreground">{crypto.symbol.toUpperCase()}</span>
                       </div>
                     </td>
-                    <td className="text-right p-3">${crypto.current_price.toLocaleString()}</td>
-                    <td className={`text-right p-3 ${
-                      crypto.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <td className="text-right">${crypto.current_price.toLocaleString()}</td>
+                    <td className={`text-right ${crypto.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {crypto.price_change_percentage_24h.toFixed(2)}%
                     </td>
-                    <td className="text-right p-3">${crypto.market_cap.toLocaleString()}</td>
+                    <td className="text-right">${crypto.market_cap.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Card>
-      </div>
-    </div>
+        </>
+      )}
+    </main>
   );
 };
 
