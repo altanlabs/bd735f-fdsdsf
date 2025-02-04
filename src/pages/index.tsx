@@ -6,6 +6,8 @@ import axios from 'axios';
 import { DigitalClock } from '@/components/blocks/digital-clock';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from 'next-themes';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +27,8 @@ const TIME_RANGES = {
   'ALL': { days: 'max' }
 };
 
-function CryptoDashboard() {
+export default function CryptoDashboard() {
+  const { theme } = useTheme();
   const [cryptoData, setCryptoData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCrypto, setSelectedCrypto] = useState(null);
@@ -34,52 +37,6 @@ function CryptoDashboard() {
   const [timeRange, setTimeRange] = useState('1W');
   const [historicalData, setHistoricalData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
-
-  const theme = {
-    background: 'transparent',
-    textColor: '#e2e8f0',
-    fontSize: 12,
-    axis: {
-      domain: {
-        line: {
-          stroke: '#475569',
-          strokeWidth: 1,
-        },
-      },
-      ticks: {
-        line: {
-          stroke: '#475569',
-          strokeWidth: 1,
-        },
-        text: {
-          fill: '#94a3b8',
-        }
-      },
-    },
-    grid: {
-      line: {
-        stroke: '#1e293b',
-        strokeWidth: 1,
-      },
-    },
-    crosshair: {
-      line: {
-        stroke: '#94a3b8',
-        strokeWidth: 1,
-        strokeDasharray: '4 4',
-      },
-    },
-    tooltip: {
-      container: {
-        background: '#1e293b',
-        color: '#e2e8f0',
-        fontSize: 'inherit',
-        borderRadius: '8px',
-        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-        padding: '6px 8px',
-      },
-    },
-  };
 
   const fetchCryptoData = async () => {
     try {
@@ -187,6 +144,52 @@ function CryptoDashboard() {
 
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
+  const chartTheme = {
+    background: 'transparent',
+    textColor: theme === 'dark' ? '#e2e8f0' : '#1e293b',
+    fontSize: 12,
+    axis: {
+      domain: {
+        line: {
+          stroke: theme === 'dark' ? '#475569' : '#cbd5e1',
+          strokeWidth: 1,
+        },
+      },
+      ticks: {
+        line: {
+          stroke: theme === 'dark' ? '#475569' : '#cbd5e1',
+          strokeWidth: 1,
+        },
+        text: {
+          fill: theme === 'dark' ? '#94a3b8' : '#64748b',
+        }
+      },
+    },
+    grid: {
+      line: {
+        stroke: theme === 'dark' ? '#1e293b' : '#e2e8f0',
+        strokeWidth: 1,
+      },
+    },
+    crosshair: {
+      line: {
+        stroke: theme === 'dark' ? '#94a3b8' : '#64748b',
+        strokeWidth: 1,
+        strokeDasharray: '4 4',
+      },
+    },
+    tooltip: {
+      container: {
+        background: theme === 'dark' ? '#1e293b' : '#ffffff',
+        color: theme === 'dark' ? '#e2e8f0' : '#1e293b',
+        fontSize: 'inherit',
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        padding: '6px 8px',
+      },
+    },
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -196,6 +199,7 @@ function CryptoDashboard() {
         </div>
         <div className="flex items-center gap-4">
           <DigitalClock />
+          <ThemeToggle />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon">
@@ -324,6 +328,7 @@ function CryptoDashboard() {
                   enableSlices="x"
                   animate={true}
                   motionConfig="gentle"
+                  theme={chartTheme}
                   colors={['rgb(75, 192, 192)']}
                   lineWidth={2}
                   enableArea={true}
@@ -391,5 +396,3 @@ function CryptoDashboard() {
     </div>
   );
 }
-
-export default CryptoDashboard;
