@@ -36,12 +36,24 @@ ChartJS.register(
   Legend
 );
 
+const TIME_RANGES = {
+  '1D': { days: 1, interval: 'minute', dataPoints: 24 * 60 },
+  '1W': { days: 7, interval: 'hourly', dataPoints: 168 },
+  '1M': { days: 30, interval: 'hourly', dataPoints: 720 },
+  '6M': { days: 180, interval: 'daily', dataPoints: 180 },
+  '1Y': { days: 365, interval: 'daily', dataPoints: 365 },
+  'ALL': { days: 'max', interval: 'daily', dataPoints: 'max' }
+};
+
 export default function CryptoDashboard() {
   const [cryptoData, setCryptoData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCrypto, setSelectedCrypto] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCurrencies, setSelectedCurrencies] = useState(new Set());
+  const [timeRange, setTimeRange] = useState('1W');
+  const [historicalData, setHistoricalData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
     const fetchCryptoData = async () => {
@@ -58,6 +70,7 @@ export default function CryptoDashboard() {
         setCryptoData(response.data);
         if (!selectedCrypto) {
           setSelectedCrypto(response.data[0]);
+          fetchHistoricalData(response.data[0].id, timeRange);
         }
         if (selectedCurrencies.size === 0) {
           setSelectedCurrencies(new Set(response.data.slice(0, 4).map(crypto => crypto.id)));
@@ -74,14 +87,57 @@ export default function CryptoDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const fetchHistoricalData = async (cryptoId, range) => {
+    setChartLoading(true);
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const from = TIME_RANGES[range].days === 'max' ? 
+        0 : 
+        now - (TIME_RANGES[range].days * 24 * 60 * 60);
+
+      const response = await axios.get(
+        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart/range`,
+        {
+          params: {
+            vs_currency: 'usd',
+            from: from,
+            to: now,
+          }
+        }
+      );
+      setHistoricalData(response.data.prices);
+    } catch (error) {
+      console.error('Error fetching historical data:', error);
+    }
+    setChartLoading(false);
+  };
+
+  useEffect(() => {
+    if (selectedCrypto) {
+      fetchHistoricalData(selectedCrypto.id, timeRange);
+    }
+  }, [timeRange, selectedCrypto?.id]);
+
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    switch(timeRange) {
+      case '1D':
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      case '1W':
+        return date.toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit' });
+      case '1M':
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      default:
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  };
+
   const chartData = {
-    labels: selectedCrypto?.sparkline_in_7d?.price?.map((_, index) => 
-      index % 24 === 0 ? 'Day ' + (Math.floor(index/24) + 1) : ''
-    ) || [],
+    labels: historicalData.map(([timestamp]) => formatDate(timestamp)),
     datasets: [
       {
         label: selectedCrypto ? `${selectedCrypto.name} Price (USD)` : 'Price (USD)',
-        data: selectedCrypto?.sparkline_in_7d?.price || [],
+        data: historicalData.map(([, price]) => price),
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1,
@@ -98,7 +154,14 @@ export default function CryptoDashboard() {
       },
       title: {
         display: true,
-        text: '7 Day Price History',
+        text: `Price History (${timeRange})`,
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          maxTicksLimit: 8,
+        },
       },
     },
   };
@@ -213,8 +276,26 @@ export default function CryptoDashboard() {
           </div>
 
           <Card className="p-6">
-            <div className="h-[400px]">
-              <Line options={chartOptions} data={chartData} />
+            <div className="flex justify-end gap-2 mb-4">
+              {Object.keys(TIME_RANGES).map((range) => (
+                <Button
+                  key={range}
+                  variant={timeRange === range ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeRange(range)}
+                >
+                  {range}
+                </Button>
+              ))}
+            </div>
+            <div className="h-[400px] relative">
+              {chartLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <Line options={chartOptions} data={chartData} />
+              )}
             </div>
           </Card>
 
