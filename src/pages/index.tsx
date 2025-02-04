@@ -70,36 +70,27 @@ export default function CryptoDashboard() {
   const fetchHistoricalData = async (cryptoId, range) => {
     setChartLoading(true);
     try {
-      let endpoint;
-      let params = { vs_currency: 'usd' };
+      const params = {
+        vs_currency: 'usd',
+        days: TIME_RANGES[range].days === 'max' ? 'max' : TIME_RANGES[range].days,
+        interval: TIME_RANGES[range].interval
+      };
 
-      if (range === '1D') {
-        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
-        params.days = 1;
-        params.interval = 'minute';
-      } else if (range === '1W') {
-        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
-        params.days = 7;
-        params.interval = 'hourly';
-      } else if (range === '1M') {
-        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
-        params.days = 30;
-        params.interval = 'hourly';
-      } else {
-        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
-        params.days = TIME_RANGES[range].days === 'max' ? 'max' : TIME_RANGES[range].days;
-      }
+      const response = await axios.get(
+        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`,
+        { params }
+      );
 
-      const response = await axios.get(endpoint, { params });
-      const formattedData = response.data.prices.map(([timestamp, price]) => ({
-        x: new Date(timestamp),
-        y: price,
-      }));
-
-      setHistoricalData([{
+      // Format data for Nivo chart
+      const formattedData = [{
         id: selectedCrypto.name,
-        data: formattedData
-      }]);
+        data: response.data.prices.map(([timestamp, price]) => ({
+          x: timestamp,
+          y: price
+        }))
+      }];
+
+      setHistoricalData(formattedData);
     } catch (error) {
       console.error('Error fetching historical data:', error);
     }
@@ -112,7 +103,8 @@ export default function CryptoDashboard() {
     }
   }, [timeRange, selectedCrypto?.id]);
 
-  const formatDate = (date) => {
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
     switch(timeRange) {
       case '1D':
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -151,11 +143,20 @@ export default function CryptoDashboard() {
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
   const theme = {
+    background: 'transparent',
+    textColor: '#888888',
+    fontSize: 12,
     axis: {
+      domain: {
+        line: {
+          stroke: '#dddddd',
+          strokeWidth: 1,
+        },
+      },
       ticks: {
-        text: {
-          fill: '#888888',
-          fontSize: 12,
+        line: {
+          stroke: '#dddddd',
+          strokeWidth: 1,
         },
       },
     },
@@ -171,6 +172,16 @@ export default function CryptoDashboard() {
         stroke: '#888888',
         strokeWidth: 1,
         strokeDasharray: '4 4',
+      },
+    },
+    tooltip: {
+      container: {
+        background: 'white',
+        color: 'inherit',
+        fontSize: 'inherit',
+        borderRadius: '8px',
+        boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        padding: '6px 8px',
       },
     },
   };
@@ -281,7 +292,7 @@ export default function CryptoDashboard() {
                 <div className="absolute inset-0 flex items-center justify-center bg-background/50">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : (
+              ) : historicalData[0]?.data?.length > 0 ? (
                 <ResponsiveLine
                   data={historicalData}
                   margin={{ top: 10, right: 40, bottom: 50, left: 60 }}
@@ -293,6 +304,7 @@ export default function CryptoDashboard() {
                     type: 'linear',
                     min: 'auto',
                     max: 'auto',
+                    stacked: false,
                   }}
                   axisLeft={{
                     format: value => 
@@ -303,6 +315,7 @@ export default function CryptoDashboard() {
                   axisBottom={{
                     format: (value) => formatDate(value),
                     tickRotation: -45,
+                    tickValues: 5,
                   }}
                   enableGridX={false}
                   curve="monotoneX"
@@ -329,6 +342,10 @@ export default function CryptoDashboard() {
                     </div>
                   )}
                 />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No data available
+                </div>
               )}
             </div>
           </Card>
