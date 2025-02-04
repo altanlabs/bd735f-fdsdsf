@@ -4,7 +4,6 @@ import "./index.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@/theme/theme-provider";
 import RootBoundary from "./components/errors/RootBoundary";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 import Layout from "./layout";
 import Index from "./pages/index";
@@ -34,9 +33,6 @@ const App = () => {
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <div className="min-h-screen bg-background">
-        <div className="fixed top-4 right-20 z-50">
-          <ThemeToggle />
-        </div>
         <RouterProvider router={router} />
       </div>
     </ThemeProvider>
