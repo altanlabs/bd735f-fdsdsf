@@ -37,12 +37,12 @@ ChartJS.register(
 );
 
 const TIME_RANGES = {
-  '1D': { days: 1, interval: 'minute', dataPoints: 24 * 60 },
-  '1W': { days: 7, interval: 'hourly', dataPoints: 168 },
-  '1M': { days: 30, interval: 'hourly', dataPoints: 720 },
-  '6M': { days: 180, interval: 'daily', dataPoints: 180 },
-  '1Y': { days: 365, interval: 'daily', dataPoints: 365 },
-  'ALL': { days: 'max', interval: 'daily', dataPoints: 'max' }
+  '1D': { days: 1, interval: 'minutely' },
+  '1W': { days: 7, interval: 'hourly' },
+  '1M': { days: 30, interval: 'hourly' },
+  '6M': { days: 180, interval: 'daily' },
+  '1Y': { days: 365, interval: 'daily' },
+  'ALL': { days: 'max', interval: 'daily' }
 };
 
 export default function CryptoDashboard() {
@@ -64,7 +64,7 @@ export default function CryptoDashboard() {
             order: 'market_cap_desc',
             per_page: 20,
             page: 1,
-            sparkline: true,
+            sparkline: false,
           },
         });
         setCryptoData(response.data);
@@ -90,21 +90,27 @@ export default function CryptoDashboard() {
   const fetchHistoricalData = async (cryptoId, range) => {
     setChartLoading(true);
     try {
-      const now = Math.floor(Date.now() / 1000);
-      const from = TIME_RANGES[range].days === 'max' ? 
-        0 : 
-        now - (TIME_RANGES[range].days * 24 * 60 * 60);
+      let endpoint;
+      let params = { vs_currency: 'usd' };
 
-      const response = await axios.get(
-        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart/range`,
-        {
-          params: {
-            vs_currency: 'usd',
-            from: from,
-            to: now,
-          }
-        }
-      );
+      if (range === '1D') {
+        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
+        params.days = 1;
+        params.interval = 'minute';
+      } else if (range === '1W') {
+        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
+        params.days = 7;
+        params.interval = 'hourly';
+      } else if (range === '1M') {
+        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
+        params.days = 30;
+        params.interval = 'hourly';
+      } else {
+        endpoint = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
+        params.days = TIME_RANGES[range].days === 'max' ? 'max' : TIME_RANGES[range].days;
+      }
+
+      const response = await axios.get(endpoint, { params });
       setHistoricalData(response.data.prices);
     } catch (error) {
       console.error('Error fetching historical data:', error);
@@ -127,8 +133,12 @@ export default function CryptoDashboard() {
         return date.toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit' });
       case '1M':
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      case '6M':
+      case '1Y':
+      case 'ALL':
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       default:
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString();
     }
   };
 
@@ -141,6 +151,7 @@ export default function CryptoDashboard() {
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1,
+        pointRadius: timeRange === '1D' ? 0 : 2,
       },
     ],
   };
@@ -148,19 +159,43 @@ export default function CryptoDashboard() {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
     plugins: {
       legend: {
         position: 'top' as const,
       },
       title: {
         display: true,
-        text: `Price History (${timeRange})`,
+        text: `${selectedCrypto?.name || ''} Price History (${timeRange})`,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            return `$${context.parsed.y.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`;
+          },
+        },
       },
     },
     scales: {
       x: {
         ticks: {
-          maxTicksLimit: 8,
+          maxTicksLimit: timeRange === '1D' ? 12 : 8,
+          maxRotation: 0,
+        },
+        grid: {
+          display: false,
+        },
+      },
+      y: {
+        position: 'right',
+        ticks: {
+          callback: (value) => `$${value.toLocaleString()}`,
         },
       },
     },
