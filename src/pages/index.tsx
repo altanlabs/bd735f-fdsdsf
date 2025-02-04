@@ -5,6 +5,7 @@ import { ResponsiveLine } from '@nivo/line';
 import { DigitalClock } from '@/components/blocks/digital-clock';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   Dialog,
   DialogContent,
@@ -152,8 +153,9 @@ const CryptoDashboard: React.FC = () => {
           <h1 className="text-2xl md:text-4xl font-bold mb-2">Crypto Dashboard</h1>
           <p className="text-muted-foreground">Real-time cryptocurrency market data</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <DigitalClock />
+          <ThemeToggle />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon">
