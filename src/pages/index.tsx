@@ -72,11 +72,11 @@ export default function CryptoDashboard() {
 
   const chartData = {
     labels: selectedCrypto?.sparkline_in_7d?.price?.map((_, index) => 
-      index % 24 === 0 ? \`Day \${Math.floor(index/24) + 1}\` : ''
+      index % 24 === 0 ? 'Day ' + (Math.floor(index/24) + 1) : ''
     ) || [],
     datasets: [
       {
-        label: selectedCrypto ? \`\${selectedCrypto.name} Price (USD)\` : 'Price (USD)',
+        label: selectedCrypto ? `${selectedCrypto.name} Price (USD)` : 'Price (USD)',
         data: selectedCrypto?.sparkline_in_7d?.price || [],
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
