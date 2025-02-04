@@ -35,93 +35,50 @@ export default function CryptoDashboard() {
   const [historicalData, setHistoricalData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
 
-  // Fetch initial crypto data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
-          params: {
-            vs_currency: 'usd',
-            order: 'market_cap_desc',
-            per_page: 20,
-            page: 1,
-            sparkline: false
-          }
-        });
-
-        setCryptoData(response.data);
+  const fetchCryptoData = async () => {
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false');
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        setCryptoData(data);
         
-        // Set initial selected crypto and currencies
-        if (response.data.length > 0) {
-          const initialCrypto = response.data[0];
-          setSelectedCrypto(initialCrypto);
-          setSelectedCurrencies(new Set(response.data.slice(0, 4).map(c => c.id)));
-          
-          // Fetch historical data for the first crypto
-          const historyResponse = await axios.get(
-            `https://api.coingecko.com/api/v3/coins/${initialCrypto.id}/market_chart`,
-            {
-              params: {
-                vs_currency: 'usd',
-                days: TIME_RANGES['1W'].days,
-                interval: 'hourly'
-              }
-            }
-          );
-
-          if (historyResponse.data && historyResponse.data.prices) {
-            setHistoricalData([{
-              id: initialCrypto.name,
-              data: historyResponse.data.prices.map(([timestamp, price]) => ({
-                x: new Date(timestamp),
-                y: price
-              }))
-            }]);
-          }
+        if (!selectedCrypto) {
+          setSelectedCrypto(data[0]);
+          fetchHistoricalData(data[0].id);
         }
         
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setLoading(false);
+        if (selectedCurrencies.size === 0) {
+          setSelectedCurrencies(new Set(data.slice(0, 4).map(c => c.id)));
+        }
       }
-    };
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching crypto data:', error);
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-
-    // Refresh data every minute
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch historical data
-  const fetchHistoricalData = async (cryptoId, range) => {
+  const fetchHistoricalData = async (cryptoId) => {
     if (!cryptoId) return;
     
     setChartLoading(true);
     try {
-      const interval = range === '1D' ? 'minute' : range === '1W' ? 'hourly' : 'daily';
-      
-      const response = await axios.get(
-        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`,
-        {
-          params: {
-            vs_currency: 'usd',
-            days: TIME_RANGES[range].days,
-            interval: interval
-          }
-        }
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart?vs_currency=usd&days=${TIME_RANGES[timeRange].days}`
       );
-
-      if (response.data && response.data.prices) {
-        const selectedCryptoData = cryptoData.find(c => c.id === cryptoId);
-        setHistoricalData([{
-          id: selectedCryptoData?.name || 'Price',
-          data: response.data.prices.map(([timestamp, price]) => ({
+      const data = await response.json();
+      
+      if (data && data.prices) {
+        const formattedData = [{
+          id: 'price',
+          data: data.prices.map(([timestamp, price]) => ({
             x: new Date(timestamp),
             y: price
           }))
-        }]);
+        }];
+        setHistoricalData(formattedData);
       }
     } catch (error) {
       console.error('Error fetching historical data:', error);
@@ -130,10 +87,15 @@ export default function CryptoDashboard() {
     setChartLoading(false);
   };
 
-  // Update historical data when timeRange or selectedCrypto changes
+  useEffect(() => {
+    fetchCryptoData();
+    const interval = setInterval(fetchCryptoData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (selectedCrypto) {
-      fetchHistoricalData(selectedCrypto.id, timeRange);
+      fetchHistoricalData(selectedCrypto.id);
     }
   }, [timeRange, selectedCrypto?.id]);
 
@@ -179,7 +141,6 @@ export default function CryptoDashboard() {
 
   const displayedCryptos = cryptoData.filter(crypto => selectedCurrencies.has(crypto.id));
 
-  // Rest of the JSX remains the same...
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
