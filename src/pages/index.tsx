@@ -13,6 +13,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import axios from 'axios';
+import { DigitalClock } from '@/components/blocks/digital-clock';
 
 // Register ChartJS components
 ChartJS.register(
@@ -82,9 +83,12 @@ export default function CryptoDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Crypto Dashboard</h1>
-        <p className="text-muted-foreground">Real-time cryptocurrency market data</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Crypto Dashboard</h1>
+          <p className="text-muted-foreground">Real-time cryptocurrency market data</p>
+        </div>
+        <DigitalClock />
       </div>
 
       {loading ? (
